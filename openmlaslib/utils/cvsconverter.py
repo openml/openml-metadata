@@ -6,11 +6,9 @@ Assumption: features with -512 (missing value) indicate a timeout during feature
 
 import arff
 import yaml
-import copy
+import openml
 from openml.study import get_study
 from openml.evaluations import list_evaluations
-
-features = ["ClassEntropy", "DecisionStumpAUC", "DecisionStumpErrRate", "DecisionStumpKappa", "DefaultAccuracy", "Dimensionality", "EquivalentNumberOfAtts", "HoeffdingAdwin.changes", "HoeffdingAdwin.warnings", "HoeffdingDDM.changes", "HoeffdingDDM.warnings", "J48.00001.AUC", "J48.00001.ErrRate", "J48.00001.Kappa", "J48.0001.AUC", "J48.0001.ErrRate", "J48.0001.Kappa", "J48.001.AUC", "J48.001.ErrRate", "J48.001.Kappa", "MajorityClassPercentage", "MajorityClassSize", "MaxAttributeEntropy", "MaxKurtosisOfNumericAtts", "MaxMeansOfNumericAtts", "MaxMutualInformation", "MaxNominalAttDistinctValues", "MaxSkewnessOfNumericAtts", "MaxStdDevOfNumericAtts", "MeanAttributeEntropy", "MeanKurtosisOfNumericAtts", "MeanMeansOfNumericAtts", "MeanMutualInformation", "MeanNominalAttDistinctValues", "MeanSkewnessOfNumericAtts", "MeanStdDevOfNumericAtts", "MinAttributeEntropy", "MinKurtosisOfNumericAtts", "MinMeansOfNumericAtts", "MinMutualInformation", "MinNominalAttDistinctValues", "MinSkewnessOfNumericAtts", "MinStdDevOfNumericAtts", "MinorityClassPerentage", "MinorityClassSize", "NaiveBayesAUC", "NaiveBayesAdwin.changes", "NaiveBayesAdwin.warnings", "NaiveBayesDdm.changes", "NaiveBayesDdm.warnings", "NaiveBayesErrRate", "NaiveBayesKappa", "NoiseToSignalRatio", "NumberOfBinaryFeatures", "NumberOfClasses", "NumberOfFeatures", "NumberOfInstances", "NumberOfInstancesWithMissingValues", "NumberOfMissingValues", "NumberOfNumericFeatures", "NumberOfSymbolicFeatures", "PercentageOfBinaryFeatures", "PercentageOfInstancesWithMissingValues", "PercentageOfMissingValues", "PercentageOfNumericFeatures", "PercentageOfSymbolicFeatures", "Quartile1AttributeEntropy", "Quartile1KurtosisOfNumericAtts", "Quartile1MeansOfNumericAtts", "Quartile1MutualInformation", "Quartile1SkewnessOfNumericAtts", "Quartile1StdDevOfNumericAtts", "Quartile2AttributeEntropy", "Quartile2KurtosisOfNumericAtts", "Quartile2MeansOfNumericAtts", "Quartile2MutualInformation", "Quartile2SkewnessOfNumericAtts", "Quartile2StdDevOfNumericAtts", "Quartile3AttributeEntropy", "Quartile3KurtosisOfNumericAtts", "Quartile3MeansOfNumericAtts", "Quartile3MutualInformation", "Quartile3SkewnessOfNumericAtts", "Quartile3StdDevOfNumericAtts", "REPTreeDepth1AUC", "REPTreeDepth1ErrRate", "REPTreeDepth1Kappa", "REPTreeDepth2AUC", "REPTreeDepth2ErrRate", "REPTreeDepth2Kappa", "REPTreeDepth3AUC", "REPTreeDepth3ErrRate", "REPTreeDepth3Kappa", "RandomTreeDepth1AUC", "RandomTreeDepth1ErrRate", "RandomTreeDepth1Kappa", "RandomTreeDepth2AUC", "RandomTreeDepth2ErrRate", "RandomTreeDepth2Kappa", "RandomTreeDepth3AUC", "RandomTreeDepth3ErrRate", "RandomTreeDepth3Kappa", "StdvNominalAttDistinctValues", "kNN1NAUC", "kNN1NErrRate", "kNN1NKappa"]
 
 def generate_scenario(study_id, measure):
     """ generates an ASlib scenario"""
@@ -19,16 +17,23 @@ def generate_scenario(study_id, measure):
     evaluations = list_evaluations("predictive_accuracy", setup=study.setups, task=study.tasks)
 
     setup_flowname = {}
+    task_data_id = {}
     setup_scenarioname = {}
     task_setup_result = {}
+    task_qualities = {}
     tasks = set()
     setups = set()
-    for idx in range(len(evaluations)):
-        task_id = evaluations[idx].task_id
-        setup_id = evaluations[idx].setup_id
-        flowname = evaluations[idx].flow_name
-        value = evaluations[idx][value]
 
+    # obtain the data and book keeping
+    for run_id in evaluations.keys():
+        task_id = evaluations[run_id].task_id
+        data_id = evaluations[run_id].data_id
+        setup_id = evaluations[run_id].setup_id
+        flowname = evaluations[run_id].flow_name
+        value = evaluations[run_id].value
+
+
+        task_data_id[task_id] = data_id
         setup_flowname[setup_id] = flowname
         setup_scenarioname[setup_id] = "%s_%s" %(setup_id,flowname)
         tasks.add(task_id)
@@ -37,6 +42,20 @@ def generate_scenario(study_id, measure):
         if task_id not in task_setup_result:
             task_setup_result[task_id] = {}
         task_setup_result[task_id][setup_id] = value
+
+    # obtain the meta-features
+    complete_quality_set = None
+    for task_id in tasks:
+        qualities = openml.datasets.get_dataset(task_data_id[task_id]).qualities
+        task_qualities[task_id] = qualities
+        if complete_quality_set is None:
+            complete_quality_set = qualities.keys()
+        else:
+            complete_quality_set = complete_quality_set & qualities.keys()
+        print(task_id, qualities)
+    complete_quality_set = list(complete_quality_set)
+    print(complete_quality_set)
+
     algos = [setup_scenarioname[setup_id] for setup_id in setup_scenarioname.keys()]
 
     description = {"scenario_id": "OpenML_study_%d" %study_id,
@@ -49,10 +68,10 @@ def generate_scenario(study_id, measure):
                    "features_cutoff_memory": "?",
                    "algorithms_deterministic": algos,
                    "algorithms_stochastic": "",
-                   "features_deterministic": "?",  # TODO
+                   "features_deterministic": complete_quality_set,
                    "features_stochastic": "",
                    "number_of_feature_steps": 1,
-                   "feature_steps": {"ALL": {"provides": "?"}},  # TODO
+                   "feature_steps": {"ALL": {"provides": complete_quality_set}},
                    "default_steps": ["ALL"]}
 
     run_attributes = [["instance_id", "STRING"],
@@ -80,54 +99,39 @@ def generate_scenario(study_id, measure):
     with open("algorithm_runs.arff", "w") as fp:
         arff.dump(run_arff, fp)
 
-    instances = []
-    status = {}
-    with open(features_fn, "r") as fp:
-        feats = fp.readline().replace("\n", "").split(",")[1:]
-        description["features_deterministic"] = copy.deepcopy(feats)
-        description["feature_steps"]["ALL"]["provides"] = feats
-
-        attributes = [["instance_id", "STRING"],
-                      ["repetition", "NUMERIC"]]
-        data = []
-
-        for f in feats:
-            attributes.append([f, "NUMERIC"])
-
-        for line in fp:
-            line = line.replace("\n", "").split(",")
-            inst = line[0]
-            feats = line[1:]
-            if sum(map(float, feats)) == -512 * len(feats):
-                status[inst] = "timeout"
-                feats = ["?"] * len(feats)
-            else:
-                status[inst] = "ok"
-            d = [inst, 1]
-            d.extend(feats)
-            data.append(d)
-
-    fv_data = {"attributes": attributes,
-               "data": data,
-               "relation": "FEATURES"
-               }
-    with open("feature_values.arff", "w") as fp:
-        arff.dump(fv_data, fp)
-
-    fs_data = [[inst, "1", stat] for inst, stat in status.iteritems()]
-    fs_attributes = [
+    qualitystatus_attributes = [
         ["instance_id", "STRING"],
         ["repetition", "NUMERIC"],
         ["ALL", ["ok", "timeout", "memout", "not_applicable", "crash", "other"]]
     ]
+    qualitystatus_data = []
+    qualities_attributes = [["instance_id", "STRING"],
+                            ["repetition", "NUMERIC"]]
+    for f in complete_quality_set:
+        qualities_attributes.append([f, "NUMERIC"])
+    qualities_data = []
+    for task_id in tasks:
+        current_line = [task_id, "1"]
+        for idx, quality in enumerate(complete_quality_set):
+            current_value = task_qualities[task_id][quality]
+            current_line.append(current_value)
+        qualities_data.append(current_line)
+        qualitystatus_data.append([task_id, "1", "ok"])
 
-    fs_data = {"attributes": fs_attributes,
-               "data": fs_data,
-               "relation": "FEATURES_RUNSTATUS"
-               }
+    qualities_arff = {"attributes": qualities_attributes,
+                      "data": qualities_data,
+                      "relation": "FEATURES"
+                     }
+    with open("feature_values.arff", "w") as fp:
+        arff.dump(qualities_arff, fp)
+
+    qualitystatus_arff = {"attributes": qualitystatus_attributes,
+                          "data": qualitystatus_data,
+                          "relation": "FEATURES_RUNSTATUS"
+                         }
 
     with open("feature_runstatus.arff", "w") as fp:
-        arff.dump(fs_data, fp)
+        arff.dump(qualitystatus_arff, fp)
 
     with open("description.txt", "w") as fp:
         yaml.dump(description, fp, default_flow_style=False)
