@@ -16,7 +16,7 @@ def generate_scenario(study_id, measure):
     study = get_study(study_id)
     evaluations = list_evaluations("predictive_accuracy", setup=study.setups, task=study.tasks)
 
-    setup_flowname = {}
+    setup_flowid = {}
     task_data_id = {}
     setup_scenarioname = {}
     task_setup_result = {}
@@ -27,15 +27,14 @@ def generate_scenario(study_id, measure):
     # obtain the data and book keeping
     for run_id in evaluations.keys():
         task_id = evaluations[run_id].task_id
+        flow_id = evaluations[run_id].flow_id
         data_id = evaluations[run_id].data_id
         setup_id = evaluations[run_id].setup_id
-        flowname = evaluations[run_id].flow_name
         value = evaluations[run_id].value
 
 
         task_data_id[task_id] = data_id
-        setup_flowname[setup_id] = flowname
-        setup_scenarioname[setup_id] = "%s_%s" %(setup_id,flowname)
+        setup_flowid[setup_id] = flow_id
         tasks.add(task_id)
         setups.add(setup_id)
 
@@ -56,10 +55,17 @@ def generate_scenario(study_id, measure):
     complete_quality_set = list(complete_quality_set)
     print(complete_quality_set)
 
-    algos = [setup_scenarioname[setup_id] for setup_id in setup_scenarioname.keys()]
+    algos = {}
+    for setup_id in setups:
+        flow = openml.flows.get_flow(setup_flowid[setup_id])
+        name = "%s_%s" % (setup_id, flow.name)
+        setup_scenarioname[setup_id] = name
+        algos[name] = {'desterministic': True,
+                       'version': flow.version,
+                       'configuration': ''} # TODO
 
     description = {"scenario_id": "OpenML_study_%d" %study_id,
-                   "performance_measures": ["runtime"],
+                   "performance_measures": [measure],
                    "maximize": [True],
                    "performance_type": [measure],
                    "algorithm_cutoff_time": 0,
