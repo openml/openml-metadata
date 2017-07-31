@@ -69,7 +69,7 @@ def generate_files(study_id, measure):
                 status = "other"
             run_data.append([task_id, "1", setup_name[setup_id], perf, status])
 
-    run_attributes = [["openml_run_id", "STRING"],
+    run_attributes = [["openml_data_id", "STRING"],
                       ["repetition", "NUMERIC"],
                       ["algorithm", "STRING"],
                       [measure, "NUMERIC"],
@@ -79,7 +79,7 @@ def generate_files(study_id, measure):
                 "data": run_data,
                 "relation": "RUN_EVALUATIONS"
                 }
-    with open("output/runs_evaluations.arff", "w") as fp:
+    with open("output/study_" + str(study_id) + "_run_evaluations_" + measure + ".arff", "w") as fp:
         arff.dump(run_arff, fp)
 
     print("Exporting meta-features...")
@@ -97,7 +97,7 @@ def generate_files(study_id, measure):
 
     qualities_arff = {"attributes": qualities_attributes,
                       "data": qualities_data,
-                      "relation": "FEATURES"
+                      "relation": "METAFEATURES"
                      }
-    with open("output/metafeatures.arff", "w") as fp:
+    with open("output/study_" + str(study_id) + "_metafeatures.arff", "w") as fp:
         arff.dump(qualities_arff, fp)
