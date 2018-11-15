@@ -1,6 +1,6 @@
 OpenML meta-data
 ================
-Extracts all OpenML evaluation results and dataset meta-features for a specific dataset
+Extracts all OpenML evaluation results and dataset meta-features for a specific study
 
 Usage
 -----
