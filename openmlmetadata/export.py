@@ -6,8 +6,10 @@ Authors: Jan van Rijn, Joaquin Vanschoren
 import arff
 import openml
 import pandas as pd
+from openml.exceptions import OpenMLServerException
 from openml.study import get_study
 from openml.evaluations import list_evaluations
+
 
 def list_all(listing_call, *args, **filters):
     """Helper to handle paged listing requests.
@@ -15,7 +17,7 @@ def list_all(listing_call, *args, **filters):
 
     Parameters
     ----------
-    listing_call : object
+    listing_call : Callable
         Name of the listing call, e.g. list_evaluations
     *args : Variable length argument list
         Any required arguments for the listing call
@@ -39,7 +41,6 @@ def list_all(listing_call, *args, **filters):
 
 
 def generate_files(study_id, measure):
-
     # Fetch all its evaluations for a specific study
     print("Fetching evaluation results from OpenML...")
     study = get_study(study_id)
@@ -87,6 +88,9 @@ def generate_files(study_id, measure):
             print("Error parsing dataset: "+str(task_data_id[task_id]))
         except arff.BadAttributeType:
             print("Error parsing dataset: "+str(task_data_id[task_id]))
+        except OpenMLServerException as e:
+            print("OpenMLServerException for task: "+str(task_id))
+            print(str(e))
     complete_quality_set = list(complete_quality_set)
 
     print("Exporting evaluations...")
@@ -130,7 +134,7 @@ def generate_files(study_id, measure):
     for f in complete_quality_set:
         qualities_attributes.append([f, "NUMERIC"])
     qualities_data = []
-    for task_id in tasks:
+    for task_id in task_qualities:
         current_line = [task_id, "1"]
         for idx, quality in enumerate(complete_quality_set):
             current_value = task_qualities[task_id][quality]
@@ -148,7 +152,7 @@ def generate_files(study_id, measure):
     eval_labels = ['openml_task_id', 'repetition', 'algorithm', 'hyperparameters', measure, 'runstatus']
     df_evals = pd.DataFrame.from_records(run_data, columns=eval_labels)
     quality_labels = ['openml_task_id', 'repetition']
-    quality_labels.extend(complete_quality_set);
+    quality_labels.extend(complete_quality_set)
 
     df_qualities = pd.DataFrame.from_records(qualities_data, columns=quality_labels)
 
@@ -165,3 +169,6 @@ def generate_files(study_id, measure):
 
     with open("output/study_" + str(study_id) + "_joint.arff", "w") as fp:
         arff.dump(joint_arff, fp)
+
+    print("The following tasks were not included due to errors:")
+    print(', '.join([str(task) for task in [t for t in tasks if t not in task_qualities]]))
