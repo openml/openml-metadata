@@ -48,7 +48,7 @@ def generate_files(measure, study_id=None, user_id=None):
         study = get_study(int(study_id))
         kwargs.update(dict(setup=study.setups, task=study.tasks))
     if user_id:
-        kwargs.update(dict(user_id=[int(user_id)]))
+        kwargs.update(dict(uploader=[int(user_id)]))
 
     print(kwargs)
     evaluations = list_all(list_evaluations, measure, **kwargs)
