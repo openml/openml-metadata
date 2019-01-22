@@ -40,11 +40,18 @@ def list_all(listing_call, *args, **filters):
     return result
 
 
-def generate_files(study_id, measure):
+def generate_files(measure, study_id=None, user_id=None):
     # Fetch all its evaluations for a specific study
     print("Fetching evaluation results from OpenML...")
-    study = get_study(study_id)
-    evaluations = list_all(list_evaluations, measure, setup=study.setups, task=study.tasks)
+    kwargs = {}
+    if study_id:
+        study = get_study(int(study_id))
+        kwargs.update(dict(setup=study.setups, task=study.tasks))
+    if user_id:
+        kwargs.update(dict(user_id=[int(user_id)]))
+
+    print(kwargs)
+    evaluations = list_all(list_evaluations, measure, **kwargs)
 
     setup_flowid = {}
     task_data_id = {}
@@ -55,6 +62,7 @@ def generate_files(study_id, measure):
     tasks = set()
     setups = set()
 
+    print("Found {} evaluations.".format(len(evaluations)))
     # obtain the data and book keeping
     for run_id in evaluations.keys():
         task_id = evaluations[run_id].task_id
