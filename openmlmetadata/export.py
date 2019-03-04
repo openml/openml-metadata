@@ -50,7 +50,6 @@ def generate_files(measure, study_id=None, user_id=None):
     if user_id:
         kwargs.update(dict(uploader=[int(user_id)]))
 
-    print(kwargs)
     evaluations = list_all(list_evaluations, measure, **kwargs)
 
     setup_flowid = {}
@@ -70,7 +69,6 @@ def generate_files(measure, study_id=None, user_id=None):
         data_id = evaluations[run_id].data_id
         setup_id = evaluations[run_id].setup_id
         value = evaluations[run_id].value
-
 
         task_data_id[task_id] = data_id
         setup_flowid[setup_id] = flow_id
@@ -107,7 +105,7 @@ def generate_files(measure, study_id=None, user_id=None):
         setup_name[setup_id] = "%s_%s" % (setup_id, flow.name)
         setup_params = openml.setups.get_setup(setup_id).parameters
         if setup_params:
-            setup_detail[setup_id] = ','.join("{}:{}".format(p.parameter_name, p.value) for p in setup_params.values())
+            setup_detail[setup_id] = ','.join("{}:{}".format(p.full_name, p.value) for p in setup_params.values())
         else:
             setup_detail[setup_id] = ''
 
@@ -117,9 +115,11 @@ def generate_files(measure, study_id=None, user_id=None):
             if setup_id in task_setup_result[task_id]:
                 perf = task_setup_result[task_id][setup_id]
                 status = "ok"
-            else:
+            elif study_id:
                 perf = 0
                 status = "other"
+            else:
+                continue
             run_data.append([task_id, "1", setup_name[setup_id], setup_detail[setup_id]+" ", perf, status])
 
     run_attributes = [["openml_task_id", "NUMERIC"],
@@ -164,7 +164,7 @@ def generate_files(measure, study_id=None, user_id=None):
 
     df_qualities = pd.DataFrame.from_records(qualities_data, columns=quality_labels)
 
-    joint_data = pd.merge(df_evals, df_qualities, how='left', on=['openml_task_id','repetition'])
+    joint_data = pd.merge(df_evals, df_qualities, how='left', on=['openml_task_id', 'repetition'])
 
     joint_attributes = run_attributes
     for f in complete_quality_set:

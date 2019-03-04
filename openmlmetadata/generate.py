@@ -1,8 +1,12 @@
 import os
 import sys
 import argparse
+import warnings
 
 from export import generate_files
+
+
+
 
 # Fetches all meta-data for a specific OpenML study
 if __name__ == "__main__":
@@ -12,4 +16,8 @@ if __name__ == "__main__":
     parser.add_argument("--eval", required=True, help="evaluation measure")
     args_ = parser.parse_args()
 
-    generate_files(args_.eval, study_id=args_.study_id, user_id=args_.user_id)
+    past =None
+    with warnings.catch_warnings():
+        # ignore excessive scikit-learn deprecation warnings during export of evaluations...
+        warnings.simplefilter("ignore")
+        past = generate_files(args_.eval, study_id=args_.study_id, user_id=args_.user_id)
