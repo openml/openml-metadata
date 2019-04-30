@@ -3,9 +3,11 @@ Fetches OpenML results for a specific study and evaluation measure and outputs t
 Authors: Jan van Rijn, Joaquin Vanschoren
 """
 
+#import sys;sys.path.append("D:\\repositories/openml-python")
 import arff
 import openml
 import pandas as pd
+
 from openml.exceptions import OpenMLServerException
 from openml.study import get_study
 from openml.evaluations import list_evaluations
@@ -89,7 +91,7 @@ def generate_files(measure, study_id=None, user_id=None):
             if complete_quality_set is None:
                 complete_quality_set = qualities.keys()
             else:
-                complete_quality_set = complete_quality_set & qualities.keys()
+                complete_quality_set = set(complete_quality_set) & set(qualities.keys())
         except arff.BadDataFormat:
             print("Error parsing dataset: "+str(task_data_id[task_id]))
         except arff.BadAttributeType:
